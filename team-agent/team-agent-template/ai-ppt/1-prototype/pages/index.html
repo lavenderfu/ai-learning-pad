@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI PPT - 智能生成演示文稿</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-left">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="#4F46E5"/>
+            <path d="M8 10h16M8 16h12M8 22h14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="logo-text">AI PPT</span>
+        </div>
+      </div>
+      <div class="navbar-center">
+        <div class="steps-indicator">
+          <div class="step active" data-step="1">
+            <span class="step-number">1</span>
+            <span class="step-label">输入内容</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" data-step="2">
+            <span class="step-number">2</span>
+            <span class="step-label">编辑大纲</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" data-step="3">
+            <span class="step-number">3</span>
+            <span class="step-label">选择风格</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" data-step="4">
+            <span class="step-number">4</span>
+            <span class="step-label">编辑PPT</span>
+          </div>
+        </div>
+      </div>
+      <div class="navbar-right">
+        <button class="btn-text" id="historyBtn">历史记录</button>
+        <button class="btn-secondary" id="loginBtn">登录</button>
+      </div>
+    </header>
+
+    <!-- 步骤1: 输入页 -->
+    <main class="page page-input active" data-page="1">
+      <div class="input-container">
+        <h1 class="page-title">输入你的内容，AI 帮你整理思路</h1>
+        <p class="page-subtitle">支持输入零散想法、工作要点、或一段文档内容</p>
+
+        <div class="input-wrapper">
+          <textarea
+            id="contentInput"
+            placeholder="请输入你想表达的内容，可以是零散的想法、工作要点、或一段文档内容（最多 5000 字）...
+
+例如：
+Q1季度工作总结
+1. 完成了3个重点项目的交付，包括XX系统升级、YY平台搭建、ZZ功能优化
+2. 团队新增2名成员，完成了团队扩充和培训
+3. 客户满意度提升15%，收到3封表扬信
+4. 存在的问题：跨部门协作效率有待提升
+5. Q2计划：推进数字化转型项目，目标完成率90%以上"
+          ></textarea>
+          <div class="char-count"><span id="charCount">0</span> / 5000 字</div>
+        </div>
+
+        <div class="input-options">
+          <div class="option-item">
+            <label for="pageCount">生成页数</label>
+            <select id="pageCount">
+              <option value="auto" selected>自动</option>
+              <option value="5">5 页</option>
+              <option value="8">8 页</option>
+              <option value="10">10 页</option>
+              <option value="15">15 页</option>
+              <option value="20">20 页</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-primary btn-large" id="generateOutlineBtn" disabled>
+          <span class="btn-icon">✨</span>
+          生成大纲
+        </button>
+      </div>
+    </main>
+
+    <!-- 步骤2: 大纲编辑页 -->
+    <main class="page page-outline" data-page="2">
+      <div class="outline-container">
+        <div class="outline-left">
+          <div class="panel-header">
+            <h3>原始内容</h3>
+          </div>
+          <div class="original-content" id="originalContent"></div>
+        </div>
+        <div class="outline-right">
+          <div class="panel-header">
+            <h3>AI 生成的大纲</h3>
+            <button class="btn-text btn-small" id="regenerateOutlineBtn">🔄 重新生成</button>
+          </div>
+          <div class="outline-editor" id="outlineEditor">
+            <!-- 大纲树形结构将由 JS 动态生成 -->
+          </div>
+          <div class="panel-footer">
+            <button class="btn-secondary" id="backToInputBtn">上一步</button>
+            <button class="btn-primary" id="toStyleBtn">下一步：选择风格</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 步骤3: 风格选择页 -->
+    <main class="page page-style" data-page="3">
+      <div class="style-container">
+        <div class="style-top">
+          <div class="panel-header">
+            <h3>大纲预览</h3>
+            <button class="btn-text btn-small" id="toggleOutlinePreview">收起 ▲</button>
+          </div>
+          <div class="outline-preview" id="outlinePreview">
+            <!-- 大纲预览将由 JS 动态生成 -->
+          </div>
+        </div>
+        <div class="style-bottom">
+          <div class="panel-header">
+            <h3>选择 PPT 风格</h3>
+          </div>
+          <div class="style-grid" id="styleGrid">
+            <!-- 风格卡片将由 JS 动态生成 -->
+          </div>
+          <div class="page-count-confirm">
+            <label>生成页数：</label>
+            <select id="pageCountConfirm">
+              <option value="auto">自动</option>
+              <option value="5">5 页</option>
+              <option value="8">8 页</option>
+              <option value="10">10 页</option>
+              <option value="15">15 页</option>
+              <option value="20">20 页</option>
+            </select>
+          </div>
+          <div class="panel-footer">
+            <button class="btn-secondary" id="backToOutlineBtn">上一步</button>
+            <button class="btn-primary" id="generatePptBtn">
+              <span class="btn-icon">✨</span>
+              生成 PPT
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 步骤4: PPT编辑页 -->
+    <main class="page page-editor" data-page="4">
+      <div class="editor-container">
+        <div class="editor-left">
+          <div class="slides-list" id="slidesList">
+            <!-- 缩略图列表将由 JS 动态生成 -->
+          </div>
+        </div>
+        <div class="editor-right">
+          <div class="editor-toolbar">
+            <button class="toolbar-btn" title="撤销">↩️</button>
+            <button class="toolbar-btn" title="重做">↪️</button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" title="加粗">B</button>
+            <button class="toolbar-btn" title="斜体">I</button>
+            <div class="toolbar-divider"></div>
+            <select class="toolbar-select" title="字号">
+              <option>14px</option>
+              <option>16px</option>
+              <option selected>18px</option>
+              <option>24px</option>
+              <option>32px</option>
+              <option>48px</option>
+            </select>
+          </div>
+          <div class="slide-preview" id="slidePreview">
+            <!-- PPT 预览将由 JS 动态生成 -->
+          </div>
+          <div class="panel-footer">
+            <button class="btn-secondary" id="backToStyleBtn">上一步</button>
+            <button class="btn-primary" id="downloadBtn">
+              <span class="btn-icon">📥</span>
+              下载 PPT
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 登录弹窗 -->
+    <div class="modal" id="loginModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>登录</h3>
+          <button class="modal-close" id="closeLoginModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>手机号</label>
+            <input type="tel" placeholder="请输入手机号" id="phoneInput">
+          </div>
+          <div class="form-group">
+            <label>验证码</label>
+            <div class="input-with-btn">
+              <input type="text" placeholder="请输入验证码" id="codeInput">
+              <button class="btn-text">获取验证码</button>
+            </div>
+          </div>
+          <button class="btn-primary btn-full">登录</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史记录侧边栏 -->
+    <div class="sidebar" id="historySidebar">
+      <div class="sidebar-header">
+        <h3>历史记录</h3>
+        <button class="sidebar-close" id="closeHistorySidebar">&times;</button>
+      </div>
+      <div class="sidebar-body">
+        <div class="history-item">
+          <div class="history-thumb"></div>
+          <div class="history-info">
+            <div class="history-title">Q1季度工作总结</div>
+            <div class="history-date">2026-03-05 14:30</div>
+          </div>
+        </div>
+        <div class="history-item">
+          <div class="history-thumb"></div>
+          <div class="history-info">
+            <div class="history-title">产品方案提案</div>
+            <div class="history-date">2026-03-04 10:15</div>
+          </div>
+        </div>
+        <div class="history-item">
+          <div class="history-thumb"></div>
+          <div class="history-info">
+            <div class="history-title">新员工培训课件</div>
+            <div class="history-date">2026-03-03 16:45</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading 遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">AI 正在分析内容...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

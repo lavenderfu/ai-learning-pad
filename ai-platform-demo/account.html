@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账户管理 - 智创</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 顶部公告栏 -->
+    <div id="notice-bar" class="notice-bar">
+        <div class="notice-content">
+            <div class="marquee-container vertical-marquee" id="marquee-text">
+                <!-- 由 config.js 动态渲染 -->
+            </div>
+        </div>
+        <button class="notice-close" onclick="closeNotice()">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+        </button>
+    </div>
+
+    <!-- 顶栏 -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <a href="index.html"><span>智创</span></a>
+            </div>
+            <div class="header-actions">
+                <!-- 由 config.js 动态渲染 -->
+            </div>
+        </div>
+    </header>
+
+    <!-- 固定左侧悬浮菜单 -->
+    <nav class="fixed-side-nav">
+        <ul>
+            <!-- 由 config.js 动态渲染 -->
+        </ul>
+    </nav>
+
+    <div class="layout page-layout">
+        <main class="main-content subpage-content">
+            <div class="page-header">
+                <h2 class="page-title">账户管理</h2>
+            </div>
+
+            <div class="account-container">
+                <!-- 资产卡片 -->
+                <div class="wallet-card">
+                    <div class="wallet-info">
+                        <div class="wallet-label" style="display: flex; align-items: center;">
+                            我的创作点：
+                            <svg viewBox="0 0 24 24" width="28" height="28" style="margin: 0 8px 0 4px;"><path fill="#f97316" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-3h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
+                            <span style="font-size: 40px; font-weight: 700; color: #c2410c;">1,250</span>
+                        </div>
+                    </div>
+                    <div class="wallet-actions" style="align-items: center; gap: 8px;">
+                        <span class="activity-badge">限时活动</span>
+                        <button class="btn-primary btn-large" style="padding: 16px 40px; font-size: 18px; border-radius: 12px;" onclick="openModal('recharge-modal')">充值创作点</button>
+                    </div>
+                </div>
+
+                <!-- 明细列表 -->
+                <div class="details-section">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: baseline; gap: 12px;">
+                            <h3 class="section-subtitle" style="margin-bottom: 0;">创作点明细</h3>
+                            <span style="font-size: 13px; color: var(--text-muted);">仅展示近1年记录</span>
+                        </div>
+                        <button class="btn-text" onclick="openModal('rule-modal')" style="color: var(--text-muted); font-size: 14px; display: flex; align-items: center; gap: 4px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                            创作点规则
+                        </button>
+                    </div>
+
+                    <div class="tabs primary-tabs" style="margin-bottom: 20px;">
+                        <button class="tab-btn active">全部明细</button>
+                        <button class="tab-btn">增加记录</button>
+                        <button class="tab-btn">消耗记录</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>类型</th>
+                                    <th>变更详情</th>
+                                    <th>点数变化</th>
+                                    <th>当前余额</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-03-03 10:15</td>
+                                    <td>漫剧创作</td>
+                                    <td>生成视频《赛博女战士_终极版.mp4》</td>
+                                    <td class="text-danger">-120</td>
+                                    <td>1,250</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-03-03 09:00</td>
+                                    <td>系统签到</td>
+                                    <td>每日登录签到奖励</td>
+                                    <td class="text-success">+20</td>
+                                    <td>1,370</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-03-02 18:30</td>
+                                    <td>充值到账</td>
+                                    <td>微信支付充值 1000点数包</td>
+                                    <td class="text-success">+1000</td>
+                                    <td>1,350</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-03-02 15:20</td>
+                                    <td>AI 证件照</td>
+                                    <td>生成蓝底证件照</td>
+                                    <td class="text-danger">-50</td>
+                                    <td>350</td>
+                                </tr>
+                                 <tr>
+                                    <td>2024-03-01 10:00</td>
+                                    <td>系统签到</td>
+                                    <td>每日登录签到奖励</td>
+                                    <td class="text-success">+20</td>
+                                    <td>400</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 分页 -->
+                    <div class="pagination">
+                        <button class="page-btn" disabled><</button>
+                        <button class="page-btn active">1</button>
+                        <button class="page-btn">2</button>
+                        <button class="page-btn">3</button>
+                        <span class="page-dots">...</span>
+                        <button class="page-btn">8</button>
+                        <button class="page-btn">></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创作点规则弹窗 -->
+    <div id="rule-modal" class="modal-overlay" onclick="closeModal(event, 'rule-modal')">
+        <div class="modal-content lg-modal">
+            <div class="modal-header">
+                <h3>创作点规则</h3>
+                <button class="close-btn" onclick="closeModal(event, 'rule-modal', true)">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 由 config.js 动态渲染 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 充值弹窗 -->
+    <div id="recharge-modal" class="modal-overlay" onclick="closeModal(event, 'recharge-modal')">
+        <div class="modal-content" style="max-width: 680px; padding: 0;">
+            <div class="modal-header">
+                <h3>创作点充值</h3>
+                <button class="close-btn" onclick="closeModal(event, 'recharge-modal', true)">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- 账号信息区 -->
+                <div class="recharge-account-info" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-color); padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 24px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="avatar-placeholder" style="width: 44px; height: 44px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="#94a3b8" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 600;">lavender</div>
+                    </div>
+                    <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size: 20px; font-weight: 700; color: #c2410c; display: flex; align-items: center; gap: 4px;">
+                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#f97316" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-3h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>
+                            1,250
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 充值档位网格 -->
+                <div class="recharge-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <!-- 由 config.js 动态渲染 -->
+                </div>
+
+                <!-- 底部提示文字 -->
+                <div class="recharge-tips" style="font-size: 12px; color: var(--text-muted); margin-bottom: 24px; text-align: left;">
+                    <!-- 由 config.js 动态渲染 -->
+                </div>
+
+                <!-- 购买按钮 -->
+                <div style="text-align: center;">
+                    <button class="btn-primary recharge-btn" style="padding: 12px 60px; font-size: 16px; border-radius: var(--radius-md); width: 60%;">购买创作点</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧悬浮按钮 -->
+    <div class="floating-right" onclick="openModal('money-modal')">
+        <!-- 由 config.js 动态渲染 -->
+    </div>
+
+    <!-- 赚钱攻略弹窗 -->
+    <div id="money-modal" class="modal-overlay" onclick="closeModal(event, 'money-modal')">
+        <div class="modal-content lg-modal">
+            <div class="modal-header">
+                <h3>创作者变现指南</h3>
+                <button class="close-btn" onclick="closeModal(event, 'money-modal', true)">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 由 config.js 动态渲染 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

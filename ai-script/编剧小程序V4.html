@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI编剧大师</title>
+    <style>
+        /* --- 1. 全局变量与重置 --- */
+        :root {
+            --bg-color: #FFFFFF;
+            --text-main: #1F2937;
+            --text-sub: #6B7280;
+            --primary-blue: #3B82F6;
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+            --tech-border-gradient: linear-gradient(135deg, #60A5FA, #C084FC, #F472B6);
+            
+            /* 安卓充值页专属 */
+            --vip-bg: #1A1A1D;
+            --vip-card-bg: #2B2B30;
+            --champagne-gold: #F3D19E;
+            --champagne-gradient: linear-gradient(135deg, #F3D19E 0%, #D4AF37 100%);
+            --champagne-text: #E8C890;
+            
+            --font-stack: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --safe-area-bottom: env(safe-area-inset-bottom);
+            --tab-height: 56px;
+            --tab-total-height: calc(var(--tab-height) + var(--safe-area-bottom));
+            --page-padding: 20px;
+            
+            --font-size-small: 12px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        
+        ::-webkit-scrollbar { display: none; }
+        .clickable:active { opacity: 0.7; transform: scale(0.98); }
+
+        /* --- 2. 页面容器架构 --- */
+        .page-container { flex: 1; position: relative; overflow: hidden; }
+        
+        /* Tab 页 */
+        .tab-page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow-y: auto; padding-bottom: calc(var(--tab-total-height) + 20px);
+            display: none; background: #fff;
+        }
+        .tab-page.active { display: block; animation: fadeIn 0.2s ease; }
+
+        /* 子页面 */
+        .sub-page {
+            position: fixed; top: 0; left: 0; width: 100%; 
+            height: calc(100% - var(--tab-total-height)); 
+            background: #fff; z-index: 200; 
+            display: flex; flex-direction: column;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: -5px 0 20px rgba(0,0,0,0.05);
+        }
+        .sub-page.active { transform: translateX(0); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- 3. 通用组件样式 --- */
+
+        /* 科技感边框 */
+        .tech-border {
+            background: #FFFFFF; border-radius: 12px; position: relative;
+            background: linear-gradient(#fff, #fff) padding-box, var(--tech-border-gradient) border-box;
+            border: 1.5px solid transparent;
+        }
+
+        /* 导航栏 */
+        .nav-bar {
+            height: 44px; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 600; border-bottom: 1px solid #F3F4F6;
+            position: relative; padding-top: var(--safe-area-bottom); background: #fff; flex-shrink: 0;
+        }
+        .nav-back { position: absolute; left: 16px; bottom: 10px; width: 24px; height: 24px; padding: 4px; }
+
+        /* Banner */
+        .banner {
+            height: 180px; background: #F0F9FF; position: relative; flex-shrink: 0;
+            display: flex; flex-direction: column; justify-content: center; 
+            padding: 0 var(--page-padding);
+        }
+        .banner-bg {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 10% 90%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+        }
+        .banner-content { position: relative; z-index: 2; margin-top: -10px; }
+        .banner-title {
+            font-size: 26px; font-weight: 800; margin-bottom: 8px;
+            background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .banner-desc { font-size: 13px; color: var(--text-sub); opacity: 0.8; line-height: 1.4; max-width: 90%; }
+
+        /* 输入区 */
+        .input-container { 
+            padding: 0 var(--page-padding); 
+            margin-top: -30px; position: relative; z-index: 20; 
+        }
+        .input-box { padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); position: relative; }
+        
+        /* 使用指南入口 */
+        .guide-entry {
+            position: absolute; top: 12px; right: 12px; z-index: 10;
+            display: flex; align-items: center;
+            font-size: 12px; color: var(--primary-blue);
+            background: transparent;
+        }
+        .guide-entry svg {
+            width: 14px; height: 14px; margin-right: 4px; fill: currentColor;
+        }
+
+        textarea {
+            width: 100%; height: 140px; border: none; background: #FAFAFA;
+            border-radius: 8px; padding: 12px; font-size: 15px; color: var(--text-main);
+            resize: none; outline: none; font-family: var(--font-stack); margin-top: 10px;
+        }
+        .placeholder-mock {
+            position: absolute; top: 42px; left: 28px; right: 28px;
+            font-size: var(--font-size-small); color: #9CA3AF; line-height: 1.6; pointer-events: none;
+        }
+        .placeholder-mock.hidden { display: none; }
+        .char-counter {
+            position: absolute; bottom: 120px; right: 24px;
+            font-size: 11px; color: #9CA3AF; pointer-events: none;
+        }
+
+        /* 试试：创意示例 */
+        .try-row {
+            display: flex; align-items: center; font-size: 11px; color: #6B7280;
+            margin-top: 8px; padding: 0 4px; overflow: hidden; white-space: nowrap;
+        }
+        .try-label { color: #374151; font-weight: 400; margin-right: 4px; flex-shrink: 0; }
+        .try-items { flex: 1; display: flex; gap: 8px; overflow: hidden; }
+        .try-item { background: #F3F4F6; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+        .try-refresh { margin-left: 8px; flex-shrink: 0; display: flex; align-items: center; color: #3B82F6; cursor: pointer; }
+        .try-refresh svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* 下拉选项 */
+        .options-row { display: flex; gap: 12px; margin-top: 16px; }
+        .option-group { flex: 1; display: flex; flex-direction: column; }
+        .select-wrapper {
+            position: relative; height: 40px;
+            background: #F9FAFB; border-radius: 6px;
+            display: flex; align-items: center; padding: 0 10px;
+            border: 1px solid #E5E7EB;
+        }
+        .select-wrapper select {
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-size: 13px; color: #374151; outline: none; appearance: none;
+        }
+        .select-arrow { position: absolute; right: 8px; pointer-events: none; width: 10px; height: 10px; fill: #9CA3AF; }
+
+        /* 按钮 */
+        .submit-btn {
+            width: 100%; height: 56px; margin-top: 20px;
+            border: none; border-radius: 28px;
+            background: var(--primary-gradient); color: white;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); transition: all 0.3s;
+        }
+        .submit-btn:disabled { background: #D1D5DB; box-shadow: none; cursor: not-allowed; }
+        .btn-main-text { font-size: 16px; font-weight: 600; line-height: 1.2; }
+        .btn-sub-text { font-size: 11px; opacity: 0.85; font-weight: 400; line-height: 1.2; margin-top: 2px; }
+        
+        /* 资产卡片 */
+        .points-card-outer {
+            margin: 16px var(--page-padding) 0;
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .points-row-top {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px dashed #E5E7EB; padding-bottom: 10px;
+        }
+        .points-label { display: flex; align-items: center; font-size: var(--font-size-small); color: #4B5563; }
+        .points-icon { width: 16px; height: 16px; fill: #F59E0B; margin-right: 6px; }
+        .points-val { font-weight: 700; color: #1F2937; font-size: 16px; }
+        .points-row-bottom { display: flex; align-items: center; justify-content: space-between; }
+        .recharge-hint { display: flex; align-items: center; font-size: var(--font-size-small); color: #6B7280; }
+        .recharge-hint-icon { width: 16px; height: 16px; fill: #F59E0B; margin-right: 6px; }
+        .recharge-action-btn {
+            background: #FFFBEB; color: #B45309;
+            border: 1px solid #FCD34D;
+            padding: 5px 14px; border-radius: 16px;
+            font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+
+        /* 创意示例 (Grid) */
+        .examples-section { padding: 24px var(--page-padding) 30px; }
+        .section-title { 
+            font-size: 16px; font-weight: 700; margin-bottom: 12px; 
+            display: flex; align-items: center; 
+            border-left: 4px solid var(--primary-blue); padding-left: 10px;
+        }
+        
+        .examples-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .example-card {
+            background: #fff; border-radius: 8px; overflow: hidden;
+            border: 1px solid #F3F4F6; position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .ex-cover {
+            width: 100%; aspect-ratio: 16/9; background: #F3F4F6;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 1px;
+        }
+        .ex-grid-cell { background: #E0E7FF; width: 100%; height: 100%; }
+        .ex-tag {
+            position: absolute; bottom: 32px; left: 0;
+            background: rgba(0,0,0,0.6); color: #fff;
+            font-size: 9px; padding: 2px 6px; border-radius: 0 6px 0 0;
+            backdrop-filter: blur(2px);
+        }
+        .ex-title {
+            padding: 8px; font-size: 12px; font-weight: 600; color: #374151;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* 历史项目 */
+        .history-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; 
+            padding: 0 var(--page-padding);
+        }
+        .history-card {
+            background: #fff; border-radius: 12px; overflow: hidden;
+            border: 1px solid #F3F4F6; position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .status-tag {
+            position: absolute; top: 6px; left: 6px; z-index: 2;
+            font-size: 9px; padding: 2px 6px; border-radius: 4px; color: white;
+            backdrop-filter: blur(4px);
+        }
+        .status-processing { background: rgba(59, 130, 246, 0.9); }
+        .status-success { background: rgba(16, 185, 129, 0.9); }
+        .h-img { width: 100%; height: 100px; background: #F3F4F6; object-fit: cover; display: block; }
+        .h-info { padding: 8px; }
+        .h-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .h-time { font-size: 10px; color: #9CA3AF; }
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding-top: 80px;
+        }
+        .empty-img { width: 120px; height: 120px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-text { font-size: 14px; color: #9CA3AF; }
+
+        /* --- 爆款剧本页与阅读页新增样式 --- */
+        .guide-bar {
+            background: var(--primary-gradient); color: #fff; height: 48px;
+            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+            position: sticky; top: 0; z-index: 100; cursor: pointer;
+            animation: slideDown 0.3s ease-out, breathe 2s infinite alternate;
+        }
+        @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+        @keyframes breathe { from { opacity: 0.85; } to { opacity: 1; } }
+
+        .discover-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px var(--page-padding);
+        }
+        .discover-card {
+            background: #fff; border-radius: 12px; overflow: hidden;
+            border: 1px solid #F3F4F6; position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: transform 0.2s;
+        }
+        .discover-card:active { transform: scale(0.98); }
+        .dc-heat {
+            position: absolute; top: 6px; right: 6px; z-index: 2;
+            background: rgba(0,0,0,0.6); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 8px;
+            backdrop-filter: blur(4px); display: flex; align-items: center; gap: 2px;
+        }
+        
+        .script-read-content {
+            flex: 1; overflow-y: auto; padding: 24px 20px; background: #F8F6F0; /* 护眼阅读纸张色 */
+            user-select: none; -webkit-user-select: none;
+            padding-bottom: 100px;
+        }
+        .episode-block { margin-bottom: 60px; }
+        .episode-title { text-align: center; font-weight: 700; font-size: 20px; margin-bottom: 24px; color: #111; letter-spacing: 1px; }
+        .episode-text { font-size: 17px; line-height: 2; color: #2C2C2C; white-space: pre-wrap; text-align: justify; letter-spacing: 0.5px; }
+        .read-progress { text-align: center; font-size: 12px; color: #9CA3AF; padding: 20px 0 40px; }
+
+        .read-bottom-bar {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 8px 20px; background: #fff;
+            display: flex; gap: 12px;
+            border-top: 1px solid #F3F4F6;
+            padding-bottom: calc(8px + var(--safe-area-bottom));
+        }
+        .read-btn {
+            flex: 1; height: 40px; border-radius: 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; cursor: pointer; line-height: 1.2;
+        }
+        .read-btn-download { background: #fff; color: var(--primary-blue); border: 1px solid var(--primary-blue); }
+        .read-btn-download.locked { opacity: 0.7; }
+        .read-btn-download .small { font-size: 10px; font-weight: 400; opacity: 0.8; display: flex; align-items: center; justify-content: center; gap: 2px; }
+        .read-btn-download .small svg { width: 10px; height: 10px; fill: currentColor; }
+        .read-btn-create { background: var(--primary-gradient); color: #fff; transition: all 0.3s; }
+        .btn-highlight { animation: highlightBtn 1.5s infinite cubic-bezier(0.25, 0.46, 0.45, 0.94); box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }
+        @keyframes highlightBtn { 0% { transform: scale(1); box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); } 50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); } 100% { transform: scale(1); box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); } }
+
+        .history-entry {
+            margin: 20px var(--page-padding); padding: 16px; background: #fff;
+            border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px; font-weight: 600; color: #374151; cursor: pointer;
+        }
+        .history-entry.disabled { color: #9CA3AF; cursor: not-allowed; background: #F9FAFB; }
+
+        /* --- 4. 详情页 --- */
+        .chat-container { 
+            flex: 1; overflow-y: auto; 
+            padding: var(--page-padding);
+            background: #F9FAFB; 
+        }
+        .user-msg-box {
+            background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 3px solid #E5E7EB;
+        }
+        .user-header { font-size: 12px; color: #3B82F6; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; }
+        .user-avatar-mini { width: 16px; height: 16px; background: #E0E7FF; border-radius: 50%; margin-right: 6px; }
+        .user-content { font-size: 14px; color: #374151; line-height: 1.5; max-height: 60px; overflow-y: auto; }
+
+        /* 步骤卡片 */
+        .tech-step-card {
+            margin-bottom: 12px; padding: 12px;
+            border-radius: 8px; position: relative;
+            background: #fff;
+            background: linear-gradient(#fff, #fff) padding-box, var(--tech-border-gradient) border-box;
+            border: 1.5px solid transparent;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            opacity: 0; animation: slideUp 0.3s forwards;
+            display: flex; align-items: center;
+        }
+        .step-icon-box {
+            width: 28px; height: 28px; border-radius: 6px;
+            background: var(--step-gradient-bg);
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 12px; flex-shrink: 0;
+        }
+        .step-icon-box svg { width: 16px; height: 16px; fill: #8B5CF6; }
+        .step-text { font-size: 13px; color: #374151; font-weight: 500; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 横滑卡片容器 */
+        .horizontal-scroll-container {
+            display: flex; 
+            overflow-x: auto; 
+            gap: 12px; 
+            padding: 4px; 
+            scroll-snap-type: x mandatory; 
+            margin-top: 12px; 
+            margin-bottom: 20px;
+            width: 100%; 
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 剧本卡片 */
+        .script-card-item {
+            width: 85vw; max-width: 340px;
+            background: #fff; border-radius: 12px; 
+            border: 1px solid #E5E7EB; scroll-snap-align: center;
+            display: flex; flex-direction: column; padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            flex-shrink: 0;
+        }
+        .sc-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 700; color: #374151; }
+        .sc-content { font-size: 13px; color: #4B5563; line-height: 1.6; height: 120px; overflow-y: auto; margin-bottom: 12px; white-space: pre-wrap; }
+        .sc-actions { display: flex; gap: 8px; margin-top: auto; }
+        .sc-btn { 
+            flex: 1; padding: 8px 0; border-radius: 6px; font-size: 12px; text-align: center; cursor: pointer; 
+        }
+        .sc-btn-outline { border: 1px solid #E5E7EB; color: #6B7280; }
+        .sc-btn-primary { background: #EFF6FF; color: #3B82F6; border: 1px solid #DBEAFE; display: flex; flex-direction: column; justify-content: center; line-height: 1.2; }
+        .sc-btn-primary.disabled { background: #F3F4F6; color: #9CA3AF; border-color: #E5E7EB; pointer-events: none; }
+        .sc-btn-primary.seq-disabled { background: #F9FAFB; color: #9CA3AF; border-color: #E5E7EB; }
+        .sc-btn-sub { font-size: 9px; opacity: 0.8; transform: scale(0.9); }
+
+        /* 分镜卡片 */
+        .storyboard-card-item {
+            width: 85vw; max-width: 340px;
+            background: #fff; border-radius: 12px;
+            border: 1px solid #E5E7EB; scroll-snap-align: center;
+            display: flex; flex-direction: column; overflow: hidden;
+            flex-shrink: 0;
+        }
+        .sb-img-grid {
+            width: 100%; height: 160px; background: #F3F4F6; padding: 2px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+        }
+        .sb-grid-cell { background: #E0E7FF; width: 100%; height: 100%; }
+        .sb-content { padding: 12px; }
+        .sb-desc { font-size: 12px; color: #4B5563; height: 60px; overflow-y: auto; margin-bottom: 10px; line-height: 1.5; white-space: normal; }
+        .sb-actions { display: flex; gap: 8px; border-top: 1px solid #F3F4F6; padding-top: 12px; }
+        .sb-btn { flex: 1; padding: 8px 0; border-radius: 6px; font-size: 12px; text-align: center; cursor: pointer; }
+        .sb-btn-outline { border: 1px solid #E5E7EB; color: #6B7280; }
+
+        /* 全局操作按钮 */
+        .global-actions { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+        .action-btn {
+            width: 100%; height: 48px; border-radius: 24px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .action-btn.disabled { background: #E5E7EB; color: #9CA3AF; border-color: #E5E7EB; box-shadow: none; pointer-events: none; }
+        .btn-fill { background: var(--primary-gradient); color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-outline { border: 1px solid #3B82F6; color: #3B82F6; background: #fff; }
+
+        /* PC端引流提示 */
+        .pc-tip { font-size: 11px; color: #9CA3AF; text-align: center; margin-top: 8px; }
+        .pc-link { color: var(--primary-blue); font-weight: 600; text-decoration: underline; }
+
+        /* --- 5. 我的页面 --- */
+        .mine-header { padding: 60px var(--page-padding) 30px; display: flex; align-items: center; }
+        .avatar { width: 64px; height: 64px; background: #E0E7FF; border-radius: 50%; margin-right: 16px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .nickname { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .user-id { font-size: 12px; color: #6B7280; }
+        
+        .asset-card {
+            margin: 0 var(--page-padding); background: #1F2937; color: #FCD34D;
+            padding: 20px; border-radius: 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 8px 20px rgba(31, 41, 55, 0.2);
+        }
+        
+        .menu-list { margin-top: 20px; padding: 0 var(--page-padding); }
+        .menu-item {
+            display: flex; align-items: center; padding: 16px 0;
+            border-bottom: 1px solid #F3F4F6; cursor: pointer;
+        }
+        .menu-icon { width: 20px; height: 20px; margin-right: 12px; fill: #6B7280; }
+        .menu-text { flex: 1; font-size: 15px; color: #374151; }
+        .menu-arrow { width: 16px; height: 16px; fill: #D1D5DB; }
+
+        /* --- 6. 充值中心 (Android) --- */
+        #page-recharge { background: var(--vip-bg); color: #fff; z-index: 300; }
+        #page-recharge .nav-bar { background: var(--vip-bg); border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff; }
+        #page-recharge .nav-back svg { fill: #fff; }
+        .recharge-header { padding: 20px; display: flex; align-items: baseline; }
+        .recharge-balance { font-size: 14px; color: rgba(255,255,255,0.6); }
+        .recharge-balance-val { font-size: 24px; font-weight: 700; color: var(--champagne-gold); margin-left: 8px; }
+        
+        .recharge-title {
+            text-align: center; margin: 20px 0 10px;
+            font-size: 18px; font-weight: 700;
+            background: var(--champagne-gradient);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        
+        .recharge-promo { text-align: center; font-size: 12px; color: #F3D19E; margin-bottom: 20px; line-height: 1.5; opacity: 0.9; }
+        
+        .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 16px; }
+        .tier-card {
+            background: var(--vip-card-bg); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 16px 4px; text-align: center;
+            position: relative; transition: all 0.2s; min-height: 180px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .tier-card.selected {
+            border-color: var(--champagne-gold);
+            background: linear-gradient(180deg, rgba(243, 209, 158, 0.15) 0%, rgba(43, 43, 48, 0) 100%);
+        }
+        .tier-tag {
+            position: absolute; top: -1px; right: -1px;
+            background: var(--champagne-gradient); color: #1A1A1D;
+            font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 0 12px 0 8px;
+        }
+        .tier-points { font-size: 18px; font-weight: 700; color: #fff; margin: 8px 0; }
+        .tier-price { font-size: 13px; color: var(--champagne-text); margin-bottom: 6px; }
+        .tier-price span { font-size: 20px; font-weight: 700; }
+        .tier-desc { font-size: 10px; color: rgba(255,255,255,0.5); line-height: 1.3; padding: 0 4px; }
+        
+        .recharge-action-area { margin-top: 30px; padding: 0 30px; }
+        .recharge-confirm-btn {
+            width: 100%; height: 50px; border-radius: 25px;
+            background: var(--champagne-gradient); color: #1A1A1D;
+            font-size: 16px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* --- 7. 创作点明细 --- */
+        .detail-tabs { display: flex; border-bottom: 1px solid #F3F4F6; background: #fff; }
+        .detail-tab { flex: 1; text-align: center; padding: 14px 0; font-size: 14px; color: #6B7280; position: relative; cursor: pointer; }
+        .detail-tab.active { color: #3B82F6; font-weight: 600; }
+        .detail-tab.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 3px; background: #3B82F6; border-radius: 2px; }
+        .detail-list { padding: 0 20px; }
+        .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F9FAFB; }
+        .d-left { display: flex; flex-direction: column; }
+        .d-name { font-size: 14px; color: #374151; margin-bottom: 4px; }
+        .d-time { font-size: 12px; color: #9CA3AF; }
+        .d-amount { font-size: 16px; font-weight: 700; }
+        .d-plus { color: #10B981; }
+        .d-minus { color: #EF4444; }
+
+        /* 底部 TabBar */
+        .tab-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            height: var(--tab-total-height);
+            background: #FFFFFF; border-top: 1px solid #F3F4F6;
+            display: flex; padding-bottom: var(--safe-area-bottom); 
+            z-index: 300;
+        }
+        .tab-item {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 10px; color: #9CA3AF; cursor: pointer;
+        }
+        .tab-item.active { color: #3B82F6; }
+        .tab-item svg { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
+
+        /* 弹窗 (小) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 500;
+            display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);
+        }
+        .modal-box {
+            background: #fff; width: 80%; max-width: 320px;
+            border-radius: 16px; padding: 24px; text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: #1F2937; }
+        .modal-desc { font-size: 14px; color: #6B7280; line-height: 1.5; margin-bottom: 24px; }
+        .modal-actions { display: flex; gap: 12px; }
+        .modal-btn {
+            flex: 1; height: 40px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .modal-btn-primary { background: var(--primary-gradient); color: white; }
+        .modal-btn-secondary { background: #F3F4F6; color: #4B5563; }
+
+        /* 大屏弹窗 (指南/创意) */
+        .modal-large-box {
+            background: #fff; width: 90%; height: 75vh;
+            border-radius: 16px; padding: 0;
+            position: relative; display: flex; flex-direction: column;
+            animation: slideUpLarge 0.3s ease;
+        }
+        @keyframes slideUpLarge { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .modal-close-btn {
+            position: absolute; top: 12px; right: 12px; z-index: 10;
+            width: 30px; height: 30px; background: #F3F4F6; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .modal-close-btn svg { width: 16px; height: 16px; fill: #6B7280; }
+        
+        .modal-large-content {
+            flex: 1; overflow-y: auto; padding: 24px;
+        }
+        .guide-content img { width: 100%; border-radius: 8px; margin: 10px 0; }
+        .guide-content p { font-size: 14px; color: #4B5563; line-height: 1.6; margin-bottom: 12px; }
+        
+        /* 创意示例详情样式 */
+        .ex-detail-img { width: 100%; aspect-ratio: 16/9; background: #F3F4F6; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 1px; border-radius: 8px; margin-bottom: 16px; }
+        .ex-detail-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .ex-detail-tags { display: flex; gap: 8px; margin-bottom: 20px; }
+        .ex-detail-tag { background: #EFF6FF; color: #3B82F6; font-size: 11px; padding: 4px 8px; border-radius: 4px; }
+        .ex-detail-section { margin-bottom: 16px; }
+        .ex-detail-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+        .ex-detail-text { 
+            height: 150px; overflow-y: auto; background: #F9FAFB; 
+            border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; 
+            font-size: 13px; color: #4B5563; line-height: 1.6; 
+        }
+
+        /* 全屏图片预览 */
+        .fullscreen-viewer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 600; display: none;
+            align-items: center; justify-content: center;
+        }
+        .fullscreen-img { width: 100%; max-height: 100%; object-fit: contain; }
+        .fullscreen-close {
+            position: absolute; top: 20px; right: 20px; color: white;
+            background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;
+            font-size: 12px;
+        }
+
+        /* 分镜生成配置弹窗 */
+        .config-modal-content { text-align: left; }
+        .config-label { font-size: 13px; color: #374151; margin-bottom: 8px; font-weight: 600; }
+        .config-select { width: 100%; padding: 8px; border: 1px solid #E5E7EB; border-radius: 6px; margin-bottom: 16px; background: #F9FAFB; }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85); color: white; padding: 16px 24px;
+            border-radius: 8px; font-size: 14px; z-index: 600;
+            display: none; text-align: center; max-width: 80%; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SVG 定义 -->
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 通用小弹窗 -->
+    <div id="modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modalTitle" class="modal-title">标题</div>
+            <div id="modalContent">
+                <div id="modalDesc" class="modal-desc">内容</div>
+            </div>
+            <div id="modalActions" class="modal-actions">
+                <!-- 动态插入按钮 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 大屏弹窗 (指南/创意) -->
+    <div id="modalLarge" class="modal-overlay">
+        <div class="modal-large-box">
+            <div class="modal-close-btn" onclick="closeLargeModal()">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </div>
+            <div id="modalLargeContent" class="modal-large-content">
+                <!-- 动态插入 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 全屏图片预览 -->
+    <div id="fullscreenViewer" class="fullscreen-viewer" onclick="closeFullscreen()">
+        <div class="fullscreen-close">关闭</div>
+        <div class="fullscreen-img" style="display:grid; grid-template-columns:repeat(3,1fr); gap:2px; width:100vw; aspect-ratio:16/9; padding:2px;">
+             <!-- 模拟大图 -->
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+             <div style="background:#E0E7FF; width:100%; height:100%"></div>
+        </div>
+    </div>
+
+    <div class="page-container">
+        
+        <!-- Tab 1: 工作台 -->
+        <div id="tab-workbench" class="tab-page">
+            <div class="banner">
+                <div class="banner-bg"></div>
+                <div class="banner-content">
+                    <div class="banner-title">AI 编剧大师</div>
+                    <div class="banner-desc">一站式生成专业剧本与分镜，故事可视化从未如此简单</div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="tech-border input-box">
+                    <!-- 使用指南入口 -->
+                    <div class="guide-entry clickable" onclick="showGuide()">
+                        <svg viewBox="0 0 24 24"><path d="M11.95 18q.525 0 .888-.363.362-.362.362-.887t-.362-.888q-.363-.362-.888-.362t-.887.362q-.363.363-.363.888t.363.887q.362.363.887.363zm-.9-3.85h1.85q0-.8.325-1.3t1.075-1.2q.95-.9 1.425-1.825.475-.925.475-2.125 0-1.725-1.1-2.813Q14 3.8 12.1 3.8q-1.65 0-2.8.775-1.15.775-1.65 2.175l1.7 .7q.3-.8.925-1.25.625-.45 1.675-.45 1.025 0 1.613.512.587.513.587 1.338 0 .6-.275 1.075-.275.475-.975 1.125-1.025.95-1.375 1.6-.35.65-.35 1.6z"/></svg>
+                        <span>使用指南</span>
+                    </div>
+
+                    <div style="position: relative;">
+                        <textarea id="storyInput" maxlength="30000"></textarea>
+                        <div id="placeholder" class="placeholder-mock">
+                            输入故事想法，可一键生成完整剧本<br>
+                            粘贴已有剧本，AI智能优化后可继续生成分镜
+                        </div>
+                        <div class="char-counter"><span id="charCount">0</span>/30000</div>
+                    </div>
+
+                    <!-- 试试：创意示例 -->
+                    <div class="try-row">
+                        <div class="try-label">试试：</div>
+                        <div class="try-items" id="tryItems">
+                            <!-- JS 填充 -->
+                        </div>
+                        <div class="try-refresh" onclick="refreshTryItems()">
+                            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- 双下拉选项 -->
+                    <div class="options-row">
+                        <div class="option-group">
+                            <div class="select-wrapper">
+                                <select id="episodeSelect"></select>
+                                <svg class="select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                            </div>
+                        </div>
+                        <div class="option-group">
+                            <div class="select-wrapper">
+                                <select id="styleSelect">
+                                    <option>玄幻</option>
+                                    <option>都市</option>
+                                    <option>仙侠</option>
+                                    <option>科幻</option>
+                                </select>
+                                <svg class="select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="startBtn" class="submit-btn clickable" disabled onclick="handleStartClick()">
+                        <span class="btn-main-text">开始创作</span>
+                        <span class="btn-sub-text" id="costPreview">预估消耗 10 创作点</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 资产卡片 -->
+            <div class="points-card-outer">
+                <div class="points-row-top">
+                    <div class="points-label">
+                        <svg class="points-icon" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11h-14zm14 1v2H5v-2h14z"/></svg>
+                        我的创作点
+                    </div>
+                    <div class="points-val user-points-display">0</div>
+                </div>
+                <div class="points-row-bottom">
+                    <div class="recharge-hint">
+                        <svg class="recharge-hint-icon" viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                        获得更多创作点
+                    </div>
+                    <div class="recharge-action-btn clickable" onclick="openRecharge()">充值</div>
+                </div>
+            </div>
+
+            <!-- 历史项目入口 -->
+            <div id="historyEntryBtn" class="history-entry disabled" onclick="openHistory()">
+                <div style="display:flex; align-items:center;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#6B7280" style="margin-right:8px;"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                    <span id="historyEntryText">历史项目 (0)</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#9CA3AF"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </div>
+
+        </div>
+
+        <!-- Tab 2: 爆款剧本 -->
+        <div id="tab-discover" class="tab-page">
+            <div class="guide-bar" onclick="scrollToFirstScript()">🔥 10w+人正在用AI生成爆款漫剧，点击剧本立即体验</div>
+            <div class="discover-grid" id="discoverGrid">
+                <!-- JS 填充 -->
+            </div>
+        </div>
+
+        <!-- Tab 3: 我的 -->
+        <div id="tab-mine" class="tab-page">
+            <div class="mine-header clickable" onclick="checkLogin()">
+                <div class="avatar"></div>
+                <div>
+                    <div class="nickname" id="mineNickname">点击登录</div>
+                    <div class="user-id" id="mineId" style="display:none">ID: 8839201</div>
+                </div>
+            </div>
+            <div class="asset-card">
+                <div>
+                    <div style="font-size:12px; opacity:0.8; margin-bottom:4px; display:flex; align-items:center;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#FCD34D" style="margin-right:6px"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11h-14zm14 1v2H5v-2h14z"/></svg>
+                        我的创作点
+                    </div>
+                    <div style="font-size:26px; font-weight:700;" class="user-points-display">0</div>
+                </div>
+                <div style="background:#FCD34D; color:#1F2937; padding:6px 18px; border-radius:20px; font-size:13px; font-weight:600;" class="clickable" onclick="openRecharge()">充值</div>
+            </div>
+            <div class="menu-list">
+                <div class="menu-item" onclick="openPointsDetail()">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <div class="menu-text">创作点明细</div>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                </div>
+                <div class="menu-item" onclick="showContact()">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>
+                    <div class="menu-text">联系客服</div>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 子页面：历史项目 -->
+    <div id="page-history" class="sub-page">
+        <div class="nav-bar">
+            <div class="nav-back clickable" onclick="closeHistory()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>历史项目</span>
+        </div>
+        <div id="historyEmpty" class="empty-state">
+            <svg class="empty-img" viewBox="0 0 24 24" fill="#E5E7EB"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            <div class="empty-text">这里空空如也~快去【工作台】创作吧！</div>
+        </div>
+        <div id="historyList" style="display:none; padding-top:16px; flex:1; overflow-y:auto;">
+            <div id="historyGrid" class="history-grid"></div>
+        </div>
+    </div>
+
+    <!-- 子页面：充值中心 -->
+    <div id="page-recharge" class="sub-page">
+        <div class="nav-bar">
+            <div class="nav-back clickable" onclick="closeRecharge()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>充值中心</span>
+        </div>
+        <div style="flex:1; overflow-y:auto;">
+            <div class="recharge-header">
+                <div class="recharge-balance">当前创作点</div>
+                <div class="recharge-balance-val user-points-display">0</div>
+            </div>
+            <div class="recharge-title">创作点充值套餐</div>
+            <div class="recharge-promo">
+                39元限时加送200点，99元限时加送500点！<br>充值创作点永久有效
+            </div>
+            <div class="tier-grid" id="tierGrid"></div>
+            <div class="recharge-action-area">
+                <div class="recharge-confirm-btn clickable" onclick="performRecharge()">立即充值</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 子页面：创作点明细 -->
+    <div id="page-points-detail" class="sub-page">
+        <div class="nav-bar">
+            <div class="nav-back clickable" onclick="closePointsDetail()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>创作点明细</span>
+        </div>
+        <div class="detail-tabs">
+            <div class="detail-tab active" onclick="switchDetailTab('consumption', this)">消费记录</div>
+            <div class="detail-tab" onclick="switchDetailTab('recharge', this)">充值记录</div>
+        </div>
+        <div class="detail-list" id="pointsList">
+            <!-- JS 动态生成 -->
+        </div>
+    </div>
+
+    <!-- 子页面：剧本阅读页 -->
+    <div id="page-script-read" class="sub-page">
+        <div class="nav-bar">
+            <div class="nav-back clickable" onclick="closeScriptRead()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span id="readTitle">剧本详情</span>
+        </div>
+        <div class="script-read-content" id="readContent">
+            <!-- JS 填充内容 -->
+        </div>
+        <div class="read-bottom-bar">
+            <div class="read-btn read-btn-download clickable" id="btnDownloadScript" onclick="downloadScript()">
+                <span>下载该剧本</span>
+                <span class="small" id="downloadDesc">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+                    成功创作1次解锁
+                </span>
+            </div>
+            <div class="read-btn read-btn-create clickable" id="btnCreateSame" onclick="createSameScript()">
+                我也做一个
+            </div>
+        </div>
+    </div>
+
+    <!-- 子页面：项目详情 -->
+    <div id="detailPage" class="sub-page">
+        <div class="nav-bar">
+            <div class="nav-back clickable" onclick="closeDetail()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <span>AI 编剧大师</span>
+        </div>
+        <div class="chat-container" id="detailContent"></div>
+    </div>
+
+    <!-- 底部 TabBar -->
+    <div class="tab-bar">
+        <div class="tab-item active" id="nav-discover" onclick="switchTab('discover', this)">
+            <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+            <span>爆款剧本</span>
+        </div>
+        <div class="tab-item" id="nav-workbench" onclick="switchTab('workbench', this)">
+            <svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+            <span>工作台</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('mine', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span>我的</span>
+        </div>
+    </div>
+
+    <script>
+        // --- 全局状态 ---
+        let isLoggedIn = false;
+        let userPoints = 0; // 初始为0
+        let isNewUser = true; // 模拟新用户
+        let historyData = [];
+        let currentProject = null;
+        let currentDetailTab = 'consumption';
+        
+        // 充值套餐
+        const rechargeTiers = [
+            { price: 19.9, points: 500, tag: '尝鲜体验包', desc: '约可生成50集剧本或5集分镜' },
+            { price: 39, points: 1200, tag: '基础创作包', desc: '约可生成120集剧本或12集分镜' },
+            { price: 99, points: 3000, tag: '畅享超值包', desc: '约可生成300集剧本或30集分镜' }
+        ];
+        let currentTierIndex = 2;
+
+        // 试试：随机提示词
+        const TRY_PROMPTS = ["废柴穿越修仙界", "替身逆袭", "狐仙报恩", "超模养成记", "黄村惊魂", "王爷独宠我", "末日生存指南", "我在大唐开酒馆"];
+
+        // 剧本生成步骤
+        const SCRIPT_STEPS = [
+            "收到故事设定，开始规划剧本结构...",
+            "正在拆解剧情，生成分集大纲...",
+            "剧本编写中，优化对白与场景...",
+            "剧本生成完成，请查看结果"
+        ];
+        // 分镜生成步骤
+        const STORYBOARD_STEPS = [
+            "分镜师已就位，开始策划画面...",
+            "正在生成分镜描述词...",
+            "AI 绘图引擎启动，渲染画面中...",
+            "分镜生成完成"
+        ];
+
+        // 爆款剧本数据 (加长版数据以展示滚动效果)
+        const DISCOVER_DATA = [
+            { id: 'd1', title: "废柴穿越修仙界", episodes: 10, heat: "1.2w", tag: "玄幻",
+              content: [
+"【场景一：陨落的天才】\n(日，外，林家广场)\n\n阳光毒辣地烤着青石板铺就的广场，四周看台上坐满了林家的长辈和年轻一辈。\n\n测验魔石碑前，一个削瘦的少年紧紧咬着嘴唇，死死盯着石碑上刺眼的五个大字——\n\n“斗之力，三段！”\n\n周围瞬间爆发出一阵哄笑。\n\n“哈哈哈，果然还是三段！我们林家怎么会出这种废物！”\n“曾经的天才，现在连个下人都打不过，真是丢尽了族长的脸！”\n\n少年林动双拳紧握，指甲深深陷入掌心，鲜血顺着指缝滴落。\n\n林动（内心独白）：三年了，不管我怎么修炼，体内的斗气总会莫名其妙地流失……难道我这辈子注定是个废人吗？\n\n就在这时，一个清脆冷漠的声音在人群中响起。\n\n“林动，你我之间的婚约，作废吧。”\n\n众人让开一条路，一名容貌绝美的少女缓缓走来，眼中满是高傲与不屑。\n\n林动猛地抬头，死死盯着她。\n\n林动（声音沙哑，却掷地有声）：三十年河东，三十年河西，莫欺少年穷！\n\n全场死寂，所有人都像看疯子一样看着他。\n\n少女冷笑一声，转身离去。",
+
+"【场景二：神秘石符】\n(夜，内，后山岩洞)\n\n月光如水，洒在静谧的后山上。\n\n林动拖着疲惫的身躯，躲进了一个隐蔽的岩洞中。\n\n林动（大口喘着粗气）：力量……我需要力量！\n\n突然，他注意到岩洞深处，有一点微弱的光芒在闪烁。\n\n他好奇地走过去，拨开杂草，发现泥土中半掩着一枚古朴的石符。石符表面布满了晦涩难懂的纹路，散发着一股古老苍茫的气息。\n\n林动小心翼翼地将石符捡起。\n\n就在他手指触碰到石符的瞬间，掌心未干的鲜血被石符瞬间吸收！\n\n“嗡——”\n\n石符爆发出刺目的强光，一股庞大的信息洪流猛地冲入林动的脑海！\n\n“啊！”林动痛苦地抱住头，摔倒在地。\n\n强光散去，一道虚幻的灵魂体缓缓从石符中飘浮而出。那是一个仙风道骨的老者，正似笑非笑地看着林动。\n\n老者（抚须而笑）：小娃娃，你渴望力量吗？\n\n林动（震惊）：你……你是谁？\n\n老者：我是这枚祖石的灵，你可以叫我……貂爷！\n\n林动的眼神中，重新燃起了疯狂的火焰。他知道，自己的命运，将在这一夜彻底改变！",
+
+"【场景三：初试锋芒】\n(日，外，后山密林)\n\n林动在貂爷的指导下，开始修炼祖石中记载的神秘功法。\n\n他一拳轰出，气爆声隐隐作响，原本停滞不前的斗气，竟然开始有了松动的迹象。\n\n这时，一只低阶魔兽“铁甲猪”突然从树丛中窜出，獠牙泛着寒光，朝林动猛冲过来。\n\n林动不仅不避，反而眼中闪过一丝兴奋。\n\n“来得好，正好拿你练练手！”\n\n他双腿微曲，猛地发力，整个人如同炮弹般射出，一拳狠狠砸在铁甲猪坚硬的头骨上。\n\n“咔嚓！”\n\n骨裂声响起，体型庞大的铁甲猪竟然被他一拳轰飞，重重摔在地上，抽搐了几下便没了动静。\n\n林动看着自己的拳头，满脸不可思议。\n\n貂爷（虚影漂浮在半空）：嘿嘿，小子，这只是刚开始。"
+              ]
+            },
+            { id: 'd2', title: "替身逆袭", episodes: 12, heat: "8k", tag: "都市", content: ["【第一集：觉醒】\n(日，内，豪华别墅)\n女主看着镜子里的自己，冷笑一声。\n女主：既然重活一世，我不会再做任何人的替身。\n（画面闪回前世惨死的画面，女主眼神变得凌厉无比。）\n她转身走向衣帽间，将那些模仿白月光风格的素色连衣裙全部扔进垃圾桶，换上了一身烈焰般的红裙。", "【第二集：初露锋芒】\n(日，内，公司会议室)\n长桌两旁坐满了高管，气氛压抑。\n女主抛出完美方案，数据清晰，逻辑严密，震惊全场。原本等着看她笑话的副总冷汗直流。\n总裁坐在主位上，目光深邃地盯着她，仿佛第一次认识这个原本唯唯诺诺的女人。"] },
+            { id: 'd3', title: "末日生存指南", episodes: 8, heat: "5k", tag: "科幻", content: ["【第一集：异变突生】\n(夜，外，城市街道)\n天空变成血红色，丧尸如潮水般涌来。\n男主拔出长刀：活下去，是唯一的规则。", "【第二集：庇护所】\n(日，内，废弃超市)\n男主带领幸存者建立防线，却发现内部人心难测。"] },
+            { id: 'd4', title: "王爷独宠我", episodes: 15, heat: "1.5w", tag: "古言", content: ["【第一集：赐婚】\n(日，内，皇宫大殿)\n皇帝赐婚，将京城第一纨绔女赐给冷面战神摄政王。\n众人哗然。", "【第二集：洞房花烛】\n(夜，内，王府喜房)\n王爷挑开红盖头，却对上一双狡黠的眼眸。"] },
+            { id: 'd5', title: "狐仙报恩", episodes: 8, heat: "3.2k", tag: "仙侠", content: ["【第一集：深山救狐】\n书生进京赶考，途经深山，救下了一只受伤的白狐。", "【第二集：金榜题名】\n白狐化作人形，暗中相助书生。"] },
+            { id: 'd6', title: "超模养成记", episodes: 20, heat: "9.1k", tag: "都市", content: ["【第一集：街头星探】\n平凡少女在街头被星探发掘，开启了她的超模之路。", "【第二集：残酷训练】\n面对严苛的形体训练，少女咬牙坚持。"] },
+            { id: 'd7', title: "黄村惊魂", episodes: 6, heat: "4.5k", tag: "悬疑", content: ["【第一集：迷雾古村】\n一群大学生探险来到废弃的黄村，迷雾中似乎隐藏着什么。", "【第二集：消失的队友】\n夜晚降临，一名队友离奇失踪，恐慌开始蔓延。"] },
+            { id: 'd8', title: "我在大唐开酒馆", episodes: 24, heat: "1.8w", tag: "历史", content: ["【第一集：穿越长安】\n现代厨师意外穿越到大唐长安，接手了一家破败酒馆。", "【第二集：惊艳四座】\n凭借现代厨艺，一道叫花鸡震惊了来访的食客。"] },
+            { id: 'd9', title: "机甲战神", episodes: 12, heat: "6.7k", tag: "科幻", content: ["【第一集：废铁残躯】\n少年在废品站捡到了一台破旧机甲，却发现里面隐藏着惊天秘密。", "【第二集：星际联赛】\n为了拯救妹妹，少年驾驶修复后的机甲踏上了赛场。"] },
+            { id: 'd10', title: "冷少的小甜妻", episodes: 18, heat: "1.1w", tag: "言情", content: ["【第一集：契约婚姻】\n为了家族企业，她被迫与冷酷霸总签下契约婚姻。", "【第二集：假戏真做】\n在同居生活中，两人的心逐渐靠近。"] },
+            { id: 'd11', title: "修仙从种田开始", episodes: 30, heat: "2.3w", tag: "玄幻", content: ["【第一集：灵田百亩】\n别人修仙靠打怪，我修仙靠种田。开局获得百亩灵田。", "【第二集：仙草化形】\n种下的仙草竟然化作了可爱的小萝莉。"] },
+            { id: 'd12', title: "神探狄仁杰", episodes: 16, heat: "8.8k", tag: "悬疑", content: ["【第一集：血字谜案】\n京城突发连环杀人案，现场留下了神秘的血字。", "【第二集：抽丝剥茧】\n狄仁杰奉命调查，发现案件背后牵扯甚广。"] },
+            { id: 'd13', title: "星际大航海", episodes: 25, heat: "5.4k", tag: "科幻", content: ["【第一集：起航】\n人类为了寻找新的家园，开启了浩浩荡荡的星际大航海时代。", "【第二集：未知星系】\n探索舰队在未知星系遭遇了不明生物的袭击。"] },
+            { id: 'd14', title: "校园最强狂少", episodes: 10, heat: "7.2k", tag: "都市", content: ["【第一集：王者归来】\n曾经的兵王隐姓埋名回归校园，只想过平静的生活。", "【第二集：被迫出手】\n面对校霸的挑衅，他不得不展露真正的实力。"] },
+            { id: 'd15', title: "妖女哪里逃", episodes: 14, heat: "1.3w", tag: "仙侠", content: ["【第一集：正邪不两立】\n名门正派的大师兄，却偏偏爱上了魔教妖女。", "【第二集：亡命天涯】\n为了爱情，两人背叛师门，踏上了逃亡之路。"] },
+        ];
+        
+        let currentReadScript = null;
+
+        function renderDiscover() {
+            const grid = document.getElementById('discoverGrid');
+            grid.innerHTML = DISCOVER_DATA.map(item => `
+                <div class="discover-card clickable" onclick="openScriptRead('${item.id}')">
+                    <div class="dc-heat">🔥 ${item.heat}</div>
+                    <div class="ex-cover">
+                        ${Array(9).fill('<div class="ex-grid-cell"></div>').join('')}
+                        <div class="ex-tag">${item.episodes}集</div>
+                    </div>
+                    <div class="ex-title">${item.title}</div>
+                </div>
+            `).join('');
+        }
+
+        function scrollToFirstScript() {
+            document.getElementById('tab-discover').scrollTo({ top: 48, behavior: 'smooth' });
+        }
+
+        function openScriptRead(id) {
+            currentReadScript = DISCOVER_DATA.find(d => d.id === id);
+            if(!currentReadScript) return;
+            
+            document.getElementById('readTitle').innerText = currentReadScript.title;
+            const contentHtml = currentReadScript.content.map((text, i) => `
+                <div class="episode-block" id="ep-${i}">
+                    <div class="episode-title">第 ${i+1} 集</div>
+                    <div class="episode-text">${text}</div>
+                </div>
+            `).join('') + `<div class="read-progress">共 ${currentReadScript.episodes} 集</div>`;
+            
+            document.getElementById('readContent').innerHTML = contentHtml;
+            document.getElementById('btnCreateSame').classList.add('btn-highlight');
+            
+            // 检查历史项目解锁下载状态
+            const downloadBtn = document.getElementById('btnDownloadScript');
+            const downloadDesc = document.getElementById('downloadDesc');
+            if (historyData.length > 0) {
+                downloadBtn.classList.remove('locked');
+                downloadDesc.style.display = 'none'; // 已解锁时不显示小字
+            } else {
+                downloadBtn.classList.add('locked');
+                downloadDesc.style.display = 'flex'; // 未解锁时显示带锁的提示
+            }
+
+            document.getElementById('page-script-read').classList.add('active');
+        }
+
+        function closeScriptRead() {
+            document.getElementById('page-script-read').classList.remove('active');
+            document.getElementById('btnCreateSame').classList.remove('btn-highlight');
+        }
+
+        function downloadScript() {
+            if (!checkLogin()) return;
+            if (historyData.length === 0) {
+                // 这个分支理论上被 CSS pointer-events: none 拦截了，但双重保险
+                showToast("需要成功创作1次项目后才能解锁下载权益");
+                return;
+            }
+            showToast("下载成功，已保存至本地");
+        }
+
+        function createSameScript() {
+            closeScriptRead();
+            switchTab('workbench', document.getElementById('nav-workbench'));
+            const input = document.getElementById('storyInput');
+            input.value = `我想写一个类似【${currentReadScript.title}】的${currentReadScript.tag}题材故事`;
+            input.dispatchEvent(new Event('input'));
+        }
+
+        function updateHistoryEntry() {
+            const btn = document.getElementById('historyEntryBtn');
+            const text = document.getElementById('historyEntryText');
+            text.innerText = `历史项目 (${historyData.length})`;
+            if (historyData.length > 0) {
+                btn.classList.remove('disabled');
+            } else {
+                btn.classList.add('disabled');
+            }
+        }
+
+        function openHistory() {
+            if (historyData.length === 0) return;
+            renderHistory();
+            document.getElementById('page-history').classList.add('active');
+        }
+        function closeHistory() {
+            document.getElementById('page-history').classList.remove('active');
+        }
+
+        function initRouting() {
+            // 解析 URL 参数模拟来源
+            const urlParams = new URLSearchParams(window.location.search);
+            const source = urlParams.get('source');
+            if (source === 'ad') {
+                switchTab('discover', document.getElementById('nav-discover'));
+            } else {
+                switchTab('workbench', document.getElementById('nav-workbench'));
+            }
+        }
+
+        // 初始化
+        window.onload = function() {
+            // 移除自动弹窗
+            updatePointsDisplay();
+            
+            // 生成集数选项
+            const select = document.getElementById('episodeSelect');
+            for(let i=1; i<=30; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.text = i + " 集";
+                select.appendChild(opt);
+            }
+            select.addEventListener('change', updateCostPreview);
+
+            // 初始化“试试”
+            refreshTryItems();
+
+            // 初始化功能
+            renderDiscover();
+            initRouting();
+            updateHistoryEntry();
+        };
+
+        // --- 登录逻辑 ---
+        function checkLogin(callback) {
+            if (isLoggedIn) {
+                if (callback) callback();
+                return true;
+            }
+            
+            // 模拟登录成功
+            isLoggedIn = true;
+            document.getElementById('mineNickname').innerText = "微信用户";
+            document.getElementById('mineId').style.display = "block";
+
+            if (isNewUser) {
+                userPoints += 200;
+                updatePointsDisplay();
+                addPointRecord("新用户赠送", 200);
+                showModal("欢迎使用！", "新用户赠送200创作点，快去体验吧！", [{
+                    text: "好的", 
+                    primary: true, 
+                    onClick: "closeModal();" + (callback ? " executeCallback()" : "")
+                }]);
+                // 简单处理：如果是新用户弹窗，用户关闭后需要再次点击操作，或者这里不做自动回调以避免弹窗冲突
+                return false; 
+            }
+            
+            if (callback) callback();
+            return true;
+        }
+
+        // --- 逻辑函数 ---
+
+        function updatePointsDisplay() {
+            document.querySelectorAll('.user-points-display').forEach(el => el.innerText = userPoints.toLocaleString());
+        }
+
+        function updateCostPreview() {
+            const episodes = document.getElementById('episodeSelect').value;
+            document.getElementById('costPreview').innerText = `预估消耗 ${episodes * 10} 创作点`;
+        }
+
+        // 试试：刷新与填入
+        function refreshTryItems() {
+            const shuffled = [...TRY_PROMPTS].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, 3);
+            const container = document.getElementById('tryItems');
+            container.innerHTML = selected.map(text => 
+                `<div class="try-item" onclick="fillInput('${text}')">${text}</div>`
+            ).join('');
+        }
+
+        function fillInput(text) {
+            const input = document.getElementById('storyInput');
+            input.value = text;
+            input.dispatchEvent(new Event('input')); 
+        }
+
+        // 渲染创意示例
+        function renderExamples() {
+            // (Removed)
+        }
+
+        // 使用指南弹窗 (大屏)
+        function showGuide() {
+            const content = `
+                <div class="guide-content">
+                    <p><b>1. 剧本创作</b>：输入想法或粘贴文本，选择集数，AI 自动生成分集剧本。</p>
+                    <div style="width:100%; height:120px; background:#F3F4F6; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#9CA3AF; margin-bottom:12px;">示意图：输入与配置</div>
+                    <p><b>2. 分镜生成</b>：在剧本详情页，可选择单集或全集生成分镜画面。</p>
+                    <div style="width:100%; height:120px; background:#F3F4F6; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#9CA3AF; margin-bottom:12px;">示意图：分镜生成</div>
+                    <p><b>3. 风格定制</b>：生成分镜时支持选择画面比例（横/竖）及多种艺术风格。</p>
+                    <p><b>4. 导出交付</b>：支持导出完整剧本和分镜图，无缝对接视频制作。</p>
+                </div>
+            `;
+            document.getElementById('modalLargeContent').innerHTML = `<div style="font-size:18px; font-weight:700; margin-bottom:16px;">使用指南</div>` + content;
+            document.getElementById('modalLarge').style.display = 'flex';
+        }
+
+        function closeLargeModal() {
+            document.getElementById('modalLarge').style.display = 'none';
+        }
+
+        // 全屏图片预览
+        function showFullscreen() {
+            document.getElementById('fullscreenViewer').style.display = 'flex';
+        }
+        function closeFullscreen() {
+            document.getElementById('fullscreenViewer').style.display = 'none';
+        }
+
+        // 输入框逻辑
+        const inputEl = document.getElementById('storyInput');
+        inputEl.addEventListener('input', function() {
+            document.getElementById('placeholder').classList.toggle('hidden', this.value.length > 0);
+            document.getElementById('charCount').innerText = this.value.length;
+            document.getElementById('startBtn').disabled = this.value.trim().length === 0;
+        });
+
+        // 开始创作
+        function handleStartClick() {
+            if (!checkLogin()) return; // 登录校验
+
+            const episodes = parseInt(document.getElementById('episodeSelect').value);
+            const cost = episodes * 10;
+            
+            if (userPoints < cost) {
+                showToast("创作点不足，即将前往充值...");
+                setTimeout(() => {
+                    openRecharge();
+                }, 1000);
+                return;
+            }
+
+            // 扣费
+            userPoints -= cost;
+            updatePointsDisplay();
+            addPointRecord(`生成剧本 (${episodes}集)`, -cost);
+
+            // 创建项目
+            const id = Date.now();
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            
+            const newItem = {
+                id: id,
+                title: inputEl.value.substring(0, 12) + "...",
+                text: inputEl.value,
+                time: timeStr,
+                episodes: episodes,
+                status: 'script_processing', 
+                storyboards: [] 
+            };
+            historyData.unshift(newItem);
+            renderHistory();
+            updateHistoryEntry();
+            
+            // 清空输入
+            inputEl.value = '';
+            document.getElementById('placeholder').classList.remove('hidden');
+            document.getElementById('charCount').innerText = '0';
+            document.getElementById('startBtn').disabled = true;
+
+            // 直接进入详情
+            openDetail(id);
+        }
+
+        // 详情页逻辑
+        function openDetail(id) {
+            currentProject = historyData.find(i => i.id === id);
+            if (!currentProject) return;
+
+            const detailPage = document.getElementById('detailPage');
+            const contentDiv = document.getElementById('detailContent');
+            detailPage.classList.add('active');
+            
+            // 基础结构
+            contentDiv.innerHTML = `
+                <div class="user-msg-box">
+                    <div class="user-header"><div class="user-avatar-mini"></div>微信用户</div>
+                    <div class="user-content">${currentProject.text}</div>
+                </div>
+                <div id="scriptProcessArea"></div>
+                <div id="scriptResultWrapper"></div> <!-- 剧本结果容器 -->
+                <div id="storyboardProcessArea"></div>
+            `;
+
+            const scriptArea = document.getElementById('scriptProcessArea');
+            const scriptResultWrapper = document.getElementById('scriptResultWrapper');
+            
+            if (currentProject.status === 'script_processing') {
+                playProcess(SCRIPT_STEPS, scriptArea, () => {
+                    currentProject.status = 'script_done';
+                    renderHistory(); 
+                    renderScriptResult(scriptResultWrapper);
+                });
+            } else {
+                renderStaticSteps(SCRIPT_STEPS, scriptArea);
+                renderScriptResult(scriptResultWrapper);
+                
+                if (currentProject.storyboards.length > 0) {
+                    const sbArea = document.getElementById('storyboardProcessArea');
+                    renderStaticSteps(STORYBOARD_STEPS, sbArea);
+                    renderStoryboardContainer(sbArea, currentProject.storyboards);
+                }
+            }
+        }
+
+        function playProcess(steps, container, callback) {
+            let index = 0;
+            function next() {
+                if (index >= steps.length) {
+                    if (callback) callback();
+                    return;
+                }
+                const div = document.createElement('div');
+                div.innerHTML = `<div class="tech-step-card"><div class="step-icon-box"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="step-text">${steps[index]}</div></div>`;
+                container.appendChild(div.firstElementChild);
+                container.parentElement.scrollTop = container.parentElement.scrollHeight;
+                index++;
+                setTimeout(next, 800);
+            }
+            next();
+        }
+
+        function renderStaticSteps(steps, container) {
+            container.innerHTML = steps.map(s => `<div class="tech-step-card"><div class="step-icon-box"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="step-text">${s}</div></div>`).join('');
+        }
+
+        // 渲染剧本结果 (含顺序逻辑)
+        function renderScriptResult(container) {
+            const episodes = currentProject.episodes;
+            let cardsHtml = '';
+            
+            const doneIndices = currentProject.storyboards.map(sb => sb.index);
+
+            for(let i=1; i<=episodes; i++) {
+                const prevDone = i === 1 || doneIndices.includes(i - 1);
+                const currentDone = doneIndices.includes(i);
+                
+                let btnClass = "sc-btn-primary gen-btn";
+                let btnOnClick = `triggerStoryboardGen(1, ${i})`;
+                let btnText = "生成本集分镜";
+                let subText = "消耗100点";
+
+                if (currentDone) {
+                    btnClass += " disabled"; 
+                    btnText = "分镜已生成";
+                    subText = "";
+                    btnOnClick = "";
+                } else if (!prevDone) {
+                    btnClass += " seq-disabled"; 
+                    btnOnClick = "showSeqAlert()";
+                }
+
+                cardsHtml += `
+                    <div class="script-card-item">
+                        <div class="sc-header"><span>第 ${i} 集</span></div>
+                        <div class="sc-content">【场景：咖啡馆】\n角色：李明，安娜\n（日，内）\n李明端起咖啡，手微微颤抖。\n李明：你真的决定了吗？\n安娜看着窗外：是的，这是唯一的选择。</div>
+                        <div class="sc-actions">
+                            <div class="sc-btn sc-btn-outline" onclick="showToast('剧本已复制')">复制</div>
+                            <div class="sc-btn ${btnClass}" onclick="${btnOnClick}">
+                                <span>${btnText}</span>
+                                ${subText ? `<span class="sc-btn-sub">${subText}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const html = `
+                <div style="margin-top:20px; animation:fadeIn 0.5s">
+                    <div style="font-size:13px; font-weight:700; color:#374151">剧本详情 (${episodes}集)</div>
+                    <div class="horizontal-scroll-container">${cardsHtml}</div>
+                    <div class="global-actions">
+                        <div class="action-btn btn-outline">导出完整剧本</div>
+                        <div class="action-btn btn-fill gen-btn" onclick="triggerStoryboardGen(${episodes}, null)">
+                            <span>生成全集分镜</span>
+                            <span style="font-size:10px; opacity:0.8; font-weight:400">预估消耗 ${episodes * 100} 创作点</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html; 
+        }
+
+        function showSeqAlert() {
+            showModal("温馨提示", "为保持一致性，请先生成上一集分镜哦！", [{text: "我知道了", primary: true, onClick: "closeModal()"}]);
+        }
+
+        // 触发分镜生成
+        function triggerStoryboardGen(count, episodeIndex) {
+            const cost = count * 100;
+            if (userPoints < cost) {
+                showToast("创作点不足，即将前往充值...");
+                setTimeout(() => {
+                    closeModal(); 
+                    openRecharge();
+                }, 1000);
+                return;
+            }
+
+            const modalContent = `
+                <div class="config-modal-content">
+                    <div class="config-label">画面比例</div>
+                    <select class="config-select"><option>横版 16:9</option><option>竖版 9:16</option></select>
+                    <div class="config-label">画面风格</div>
+                    <select class="config-select"><option>真人写实</option><option>国漫</option><option>日漫</option><option>韩漫</option><option>3D CG</option><option>皮克斯</option><option>迪士尼</option></select>
+                </div>
+            `;
+            
+            showModal("分镜生成配置", "", [
+                {text: "取消", primary: false, onClick: "closeModal()"},
+                {text: `确认生成 (-${cost}点)`, primary: true, onClick: `confirmGenStoryboard(${cost}, ${count}, ${episodeIndex})`}
+            ]);
+            document.getElementById('modalDesc').innerHTML = modalContent;
+        }
+
+        function confirmGenStoryboard(cost, count, episodeIndex) {
+            closeModal();
+            
+            userPoints -= cost;
+            updatePointsDisplay();
+            addPointRecord(episodeIndex ? `生成第${episodeIndex}集分镜` : "生成全集分镜", -cost);
+            
+            document.querySelectorAll('.gen-btn').forEach(btn => btn.classList.add('disabled'));
+
+            const sbArea = document.getElementById('storyboardProcessArea');
+            
+            playProcess(STORYBOARD_STEPS, sbArea, () => {
+                const newStoryboards = [];
+                if (episodeIndex) {
+                    newStoryboards.push({index: episodeIndex});
+                } else {
+                    for(let i=1; i<=count; i++) newStoryboards.push({index: i});
+                }
+                
+                currentProject.storyboards.push(...newStoryboards);
+                
+                // 刷新剧本区域状态（解锁下一集）
+                const scriptResultWrapper = document.getElementById('scriptResultWrapper');
+                renderScriptResult(scriptResultWrapper);
+
+                renderStoryboardContainer(sbArea, newStoryboards);
+                document.querySelectorAll('.gen-btn').forEach(btn => btn.classList.remove('disabled'));
+            });
+        }
+
+        function renderStoryboardContainer(container, dataList) {
+            let cardsHtml = dataList.map(item => createStoryboardCard(item.index)).join('');
+
+            const html = `
+                <div style="margin-top:20px; animation:fadeIn 0.5s; border-top:1px dashed #E5E7EB; padding-top:20px;">
+                    <div style="font-size:13px; font-weight:700; color:#374151">分镜生成结果</div>
+                    <div class="horizontal-scroll-container">${cardsHtml}</div>
+                    <div class="global-actions">
+                        <div class="action-btn btn-fill">导出完整分镜</div>
+                        <div class="pc-tip">推荐：到PC端体验更加完整强大的创作功能，<span class="pc-link clickable" onclick="showContact()">请联系客服</span></div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+            container.parentElement.scrollTop = container.parentElement.scrollHeight;
+        }
+
+        function createStoryboardCard(index) {
+            return `
+                <div class="storyboard-card-item">
+                    <div class="sb-img-grid clickable" onclick="showFullscreen()">
+                        ${Array(9).fill('<div class="sb-grid-cell"></div>').join('')}
+                    </div>
+                    <div class="sb-content">
+                        <div style="font-weight:700; font-size:12px; margin-bottom:4px; color:#3B82F6">第 ${index} 集分镜</div>
+                        <div class="sb-desc">画面描述：镜头缓慢推进，聚焦在桌上的咖啡杯。光线柔和，营造出忧郁的氛围。李明的表情特写，眼神中充满不舍。</div>
+                        <div class="sb-actions">
+                            <div class="sb-btn sb-btn-outline clickable" onclick="showToast('描述已复制')">复制描述</div>
+                            <div class="sb-btn sb-btn-outline clickable" onclick="showToast('图片下载中')">下载图片</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 充值与明细 ---
+        function openRecharge() {
+            if (!checkLogin()) return; // 登录校验
+            const grid = document.getElementById('tierGrid');
+            grid.innerHTML = rechargeTiers.map((tier, index) => `
+                <div class="tier-card clickable ${index === currentTierIndex ? 'selected' : ''}" onclick="selectTier(${index})">
+                    <div class="tier-tag">${tier.tag}</div>
+                    <div class="tier-points">${tier.points}点</div>
+                    <div class="tier-price">¥<span>${tier.price}</span></div>
+                    <div class="tier-desc">${tier.desc}</div>
+                </div>
+            `).join('');
+            document.getElementById('page-recharge').classList.add('active');
+        }
+        function closeRecharge() { document.getElementById('page-recharge').classList.remove('active'); }
+        function selectTier(index) { currentTierIndex = index; openRecharge(); }
+        function performRecharge() {
+            if (!checkLogin()) return; // 登录校验
+            const tier = rechargeTiers[currentTierIndex];
+            userPoints += tier.points;
+            updatePointsDisplay();
+            addPointRecord(tier.tag, tier.points);
+            showToast("充值成功");
+            setTimeout(closeRecharge, 1000);
+        }
+
+        // 创作点明细
+        let pointRecords = []; // 初始为空，登录后添加
+        function addPointRecord(name, amount) {
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            pointRecords.unshift({time: timeStr, name: name, amount: amount});
+        }
+        
+        function switchDetailTab(tab, el) {
+            currentDetailTab = tab;
+            document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderPointsList();
+        }
+
+        function openPointsDetail() {
+            renderPointsList();
+            document.getElementById('page-points-detail').classList.add('active');
+        }
+        
+        function renderPointsList() {
+            const list = document.getElementById('pointsList');
+            const filtered = pointRecords.filter(r => {
+                if (currentDetailTab === 'consumption') return r.amount < 0;
+                if (currentDetailTab === 'recharge') return r.amount > 0;
+                return true;
+            });
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:40px; color:#9CA3AF; font-size:12px;">暂无记录</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(r => `
+                <div class="detail-item">
+                    <div class="d-left">
+                        <div class="d-name">${r.name}</div>
+                        <div class="d-time">${r.time}</div>
+                    </div>
+                    <div class="d-amount ${r.amount > 0 ? 'd-plus' : 'd-minus'}">${r.amount > 0 ? '+' : ''}${r.amount}</div>
+                </div>
+            `).join('');
+        }
+        
+        function closePointsDetail() { document.getElementById('page-points-detail').classList.remove('active'); }
+
+        // 客服
+        function showContact() {
+            showModal("联系客服", "客服邮箱：xcxmanju@360.cn", [{text: "确定", primary: true, onClick: "closeModal()"}]);
+        }
+
+        // 历史列表渲染
+        function renderHistory() {
+            const grid = document.getElementById('historyGrid');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            
+            if(historyData.length === 0) {
+                empty.style.display = 'flex'; list.style.display = 'none';
+            } else {
+                empty.style.display = 'none'; list.style.display = 'block';
+                grid.innerHTML = historyData.map(item => `
+                    <div class="history-card clickable" onclick="openDetail(${item.id})">
+                        <div class="status-tag status-success">
+                            ${item.status === 'script_processing' ? '生成中' : '生成成功'}
+                        </div>
+                        <svg class="h-img" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="#F3F4F6"/><text x="50" y="50" font-size="10" fill="#9CA3AF" text-anchor="middle">封面</text></svg>
+                        <div class="h-info"><div class="h-title">${item.title}</div><div class="h-time">${item.time}</div></div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 基础函数
+        function switchTab(tabName, el) {
+            document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
+        function closeDetail() { document.getElementById('detailPage').classList.remove('active'); }
+        function showModal(title, desc, buttons) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDesc').innerText = desc; 
+            if(desc.includes('<')) document.getElementById('modalDesc').innerHTML = desc; 
+            document.getElementById('modalActions').innerHTML = buttons.map(btn => `<div class="modal-btn ${btn.primary ? 'modal-btn-primary' : 'modal-btn-secondary'}" onclick="${btn.onClick}">${btn.text}</div>`).join('');
+            document.getElementById('modal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        function showToast(msg) {
+            const t = document.getElementById('toast'); t.innerText = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 2000);
+        }
+    </script>
+</body>
+</html>
