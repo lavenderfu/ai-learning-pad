@@ -1,7 +1,13 @@
-import { anthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
+
+// 兼容 360 智脑的自定义 provider
+const customModel = createOpenAI({
+  baseURL: 'https://api.360.cn/v1',
+  apiKey: process.env.API_KEY_360,
+});
 
 // System prompt forces the AI to output exactly the format we need
 const systemPrompt = `你是一个专业的3岁幼儿教育专家。
@@ -19,9 +25,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing topic' }, { status: 400 });
     }
 
-    // Call Anthropic API using ai-sdk
+    // Call 360 API using ai-sdk openai compatible mode
     const result = await generateObject({
-      model: anthropic('claude-3-haiku-20240307'),
+      model: customModel('360GPT_S2_V9'), // 这里填入你实际使用的360模型名称，比如 360GPT_S2_V9
       system: systemPrompt,
       prompt: `请为这个主题生成题目: ${topic}`,
       schema: z.object({
