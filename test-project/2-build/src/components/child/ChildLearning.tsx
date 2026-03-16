@@ -350,7 +350,7 @@ export default function ChildLearning({ topic, onExit }: ChildLearningProps) {
         </div>
       )}
 
-      <style dangerouslySetInlineStyle={{__html: `
+      <style dangerouslySetInnerHTML={{__html: `
         @keyframes shake {
           10%, 90% { transform: translate3d(-1px, 0, 0); }
           20%, 80% { transform: translate3d(2px, 0, 0); }
