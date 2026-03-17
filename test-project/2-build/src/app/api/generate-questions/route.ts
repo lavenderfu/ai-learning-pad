@@ -29,12 +29,9 @@ export async function POST(req: Request) {
 
     // Call 360 API using ai-sdk openai compatible mode
     const result = await generateObject({
-      model: customModel('360gpt-pro'), // 严格使用用户提供的模型名
+      model: customModel('claude-3.5-sonnet'), // 严格按照用户最新给定的模型别名
       system: systemPrompt,
       prompt: `请为这个主题生成题目: ${topic}`,
-      temperature: 0.9, // 按样例严格配置
-      maxTokens: 2048,
-      topP: 0.5,
       schema: z.object({
         questions: z.array(
           z.object({
