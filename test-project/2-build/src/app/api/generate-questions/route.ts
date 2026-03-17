@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 // 兼容 360 智脑的自定义 provider
 const customModel = createOpenAI({
   baseURL: 'https://api.360.cn/v1',
-  apiKey: process.env.API_KEY_360,
+  apiKey: process.env.API_KEY_360 || '',
   compatibility: 'compatible', // 增加兼容性标志，处理国产模型返回格式的一些小差异
 });
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     // Call 360 API using ai-sdk openai compatible mode
     const result = await generateObject({
-      model: customModel('volcengine/doubao-seed-1-6'), // 使用你指定的火山引擎模型
+      model: customModel('360gpt-pro'), // 回退到 360 自己绝对支持的官方大模型
       system: systemPrompt,
       prompt: `请为这个主题生成题目: ${topic}`,
       schema: z.object({
