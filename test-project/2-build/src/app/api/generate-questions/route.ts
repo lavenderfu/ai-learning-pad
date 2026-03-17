@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 const customModel = createOpenAI({
   baseURL: 'https://api.360.cn/v1',
   apiKey: process.env.API_KEY_360,
+  compatibility: 'compatible', // 增加兼容性标志，处理国产模型返回格式的一些小差异
 });
 
 // System prompt forces the AI to output exactly the format we need
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
 
     // Call 360 API using ai-sdk openai compatible mode
     const result = await generateObject({
-      model: customModel('360GPT_S2_V9'), // 这里填入你实际使用的360模型名称，比如 360GPT_S2_V9
+      model: customModel('360gpt-pro'), // 换一个更通用稳定的360模型名称
       system: systemPrompt,
       prompt: `请为这个主题生成题目: ${topic}`,
       schema: z.object({
@@ -48,10 +49,15 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(result.object);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating questions:', error);
+    // Return detailed error for debugging
     return NextResponse.json(
-      { error: 'Failed to generate questions' },
+      {
+        error: 'Failed to generate questions',
+        details: error.message || String(error),
+        name: error.name
+      },
       { status: 500 }
     );
   }
