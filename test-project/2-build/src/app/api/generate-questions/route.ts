@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
     // Call 360 API using ai-sdk openai compatible mode
     const result = await generateObject({
-      model: customModel('360gpt-pro'), // 换一个更通用稳定的360模型名称
+      model: customModel('volcengine/doubao-seed-1-6'), // 使用你指定的火山引擎模型
       system: systemPrompt,
       prompt: `请为这个主题生成题目: ${topic}`,
       schema: z.object({
